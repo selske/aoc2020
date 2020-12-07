@@ -1,12 +1,9 @@
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static java.util.stream.Collectors.toList;
-
-public class Day7 extends AocDay<Map<String, Day7.Bag>> {
+public class Day7 extends AocDay<Day7.Bag> {
 
     public static void main(String[] args) {
         new Day7().solve(true);
@@ -16,36 +13,27 @@ public class Day7 extends AocDay<Map<String, Day7.Bag>> {
     private static final Pattern CONTAIN_PATTERN = Pattern.compile("(\\d+) (.*) bags?.?");
 
     @Override
-    Map<String, Bag> prepareInput() throws Exception {
+    Bag prepareInput() throws Exception {
         Map<String, Bag> bags = new HashMap<>();
         Files.lines(Path.of(Day7.class.getResource("/day7").getPath()))
-                .collect(toList()).forEach(line -> {
-            Matcher matcher = PATTERN.matcher(line);
-            if (!matcher.matches()) {
-                throw new IllegalArgumentException();
-            }
-            String colour = matcher.group(1);
-            Bag bag = bags.computeIfAbsent(colour, Bag::new);
-            String contain = matcher.group(2);
-            Arrays.stream(contain.split(", "))
-                    .filter(c -> !"no other bags.".equals(c))
-                    .forEach(c -> {
-                        Matcher containMatcher = CONTAIN_PATTERN.matcher(c);
-                        if (!containMatcher.matches()) {
-                            throw new IllegalArgumentException();
-                        }
-                        Bag containBag = bags.computeIfAbsent(containMatcher.group(2), Bag::new);
-                        containBag.containedIn(bag);
-                        bag.contains(containBag, Integer.valueOf(containMatcher.group(1)));
-                    });
-        });
-        return bags;
+                .flatMap(line -> PATTERN.matcher(line).results())
+                .forEach(matchResult -> {
+                    String colour = matchResult.group(1);
+                    Bag bag = bags.computeIfAbsent(colour, Bag::new);
+                    String contain = matchResult.group(2);
+                    Arrays.stream(contain.split(", "))
+                            .flatMap(c -> CONTAIN_PATTERN.matcher(c).results())
+                            .forEach(containMatchResult -> {
+                                Bag containBag = bags.computeIfAbsent(containMatchResult.group(2), Bag::new);
+                                containBag.containedIn(bag);
+                                bag.contains(containBag, Integer.valueOf(containMatchResult.group(1)));
+                            });
+                });
+        return bags.get("shiny gold");
     }
 
     @Override
-    String part1(Map<String, Bag> bags) {
-        Bag shinyGold = bags.get("shiny gold");
-
+    String part1(Bag shinyGold) {
         Set<Bag> canContain = new HashSet<>();
         canContain(canContain, shinyGold);
         return canContain.size() + "";
@@ -60,20 +48,17 @@ public class Day7 extends AocDay<Map<String, Day7.Bag>> {
     }
 
     @Override
-    String part2(Map<String, Bag> bags) {
-        Bag shinyGold = bags.get("shiny gold");
-
-        return countContaining(shinyGold) - 1 + "";
+    String part2(Bag shinyGold) {
+        return countContaining(shinyGold) + "";
     }
 
     private int countContaining(Bag bag) {
         if (bag.contains.isEmpty()) {
-            return 1;
+            return 0;
         }
-        int sum = bag.contains.entrySet().stream()
-                .mapToInt(e -> countContaining(e.getKey()) * e.getValue())
+        return bag.contains.entrySet().stream()
+                .mapToInt(e -> (countContaining(e.getKey()) + 1) * e.getValue())
                 .sum();
-        return sum + 1;
     }
 
     protected static class Bag {
