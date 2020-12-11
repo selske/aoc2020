@@ -3,7 +3,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toMap;
@@ -13,6 +12,9 @@ public class Day11 extends AocDay<Map<Day11.Coordinate, Day11.Seat>> {
     public static void main(String[] args) {
         new Day11().solve(true);
     }
+
+    private int rows;
+    private int cols;
 
     @Override
     Map<Coordinate, Seat> prepareInput() throws Exception {
@@ -28,6 +30,8 @@ public class Day11 extends AocDay<Map<Day11.Coordinate, Day11.Seat>> {
                 }
             }
         }
+        rows = lines.size();
+        cols = lines.get(0).length();
         return seats;
     }
 
@@ -38,7 +42,7 @@ public class Day11 extends AocDay<Map<Day11.Coordinate, Day11.Seat>> {
 
     @Override
     String part2(Map<Coordinate, Seat> seats) {
-        return solve(seats, 100, 5);
+        return solve(seats, Integer.MAX_VALUE, 5);
     }
 
     private String solve(Map<Coordinate, Seat> initialSeats, int limit, int tolerance) {
@@ -65,8 +69,14 @@ public class Day11 extends AocDay<Map<Day11.Coordinate, Day11.Seat>> {
         }
     }
 
+    private interface CoordinateFunction{
+
+        Coordinate apply(Coordinate input, int i);
+
+    }
+
     long countNeighbours(Map<Coordinate, Seat> seats, Seat seat, int limit) {
-        return Stream.<BiFunction<Coordinate, Integer, Coordinate>>of(
+        return Stream.<CoordinateFunction>of(
                 (coordinate, i) -> new Coordinate(coordinate.row, coordinate.col + i),
                 (coordinate, i) -> new Coordinate(coordinate.row, coordinate.col - i),
                 (coordinate, i) -> new Coordinate(coordinate.row + i, coordinate.col + i),
@@ -78,7 +88,11 @@ public class Day11 extends AocDay<Map<Day11.Coordinate, Day11.Seat>> {
         )
                 .filter(coordinateFunction -> {
                     for (int i = 1; i < limit; i++) {
-                        Seat potentialNeighbour = seats.get(coordinateFunction.apply(seat.coordinate, i));
+                        final Coordinate coordinate = coordinateFunction.apply(seat.coordinate, i);
+                        if (coordinate.row < 0 || coordinate.row > rows || coordinate.col < 0 || coordinate.col > cols) {
+                            return false;
+                        }
+                        Seat potentialNeighbour = seats.get(coordinate);
                         if (potentialNeighbour != null) {
                             return potentialNeighbour.occupied();
                         }

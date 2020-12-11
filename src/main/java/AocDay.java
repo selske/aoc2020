@@ -7,10 +7,14 @@ public abstract class AocDay<INPUT> {
     abstract String part2(INPUT input) throws Exception;
 
     public void solve() {
-        solve(false);
+        solve(false, true);
     }
 
     public void solve(boolean preRun) {
+        solve(preRun, true);
+    }
+
+    public void solve(boolean preRun, boolean printSummary) {
         try {
             if (preRun) {
                 INPUT input = prepareInput();
@@ -27,15 +31,17 @@ public abstract class AocDay<INPUT> {
             String part2Solution = part2(input);
             long afterPart2 = System.nanoTime();
 
-            System.out.println("SOLUTIONS:");
-            System.out.println("Part1: " + part1Solution);
-            System.out.println("Part2: " + part2Solution);
-            System.out.println();
-            System.out.println("STATS:");
-            System.out.println("Prepare: " + ((afterPrepare - beforePrepare) / 1_000_000.) + "ms");
-            System.out.println("Part1: " + ((afterPart1 - beforePart1) / 1_000_000.) + "ms");
-            System.out.println("Part2: " + ((afterPart2 - beforePart2) / 1_000_000.) + "ms");
-            System.out.println("Total time: " + ((afterPart2 - beforePrepare) / 1_000_000.) + "ms");
+            if (printSummary) {
+                System.out.println("SOLUTIONS:");
+                System.out.println("Part1: " + part1Solution);
+                System.out.println("Part2: " + part2Solution);
+                System.out.println();
+                System.out.println("STATS:");
+                System.out.println("Prepare: " + ((afterPrepare - beforePrepare) / 1_000_000.) + "ms");
+                System.out.println("Part1: " + ((afterPart1 - beforePart1) / 1_000_000.) + "ms");
+                System.out.println("Part2: " + ((afterPart2 - beforePart2) / 1_000_000.) + "ms");
+                System.out.println("Total time: " + ((afterPart2 - beforePrepare) / 1_000_000.) + "ms");
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
