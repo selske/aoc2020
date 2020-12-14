@@ -25,11 +25,11 @@ public class Day12 extends AocDay<List<String>> {
             char direction = s.charAt(0);
             int amount = parseInt(s.substring(1));
             position = switch (direction) {
-                case 'N' -> Direction.N.apply(position, amount);
-                case 'S' -> Direction.S.apply(position, amount);
-                case 'E' -> Direction.E.apply(position, amount);
-                case 'W' -> Direction.W.apply(position, amount);
-                case 'F' -> currentDirection.apply(position, amount);
+                case 'N' -> Direction.N.move(position, amount);
+                case 'S' -> Direction.S.move(position, amount);
+                case 'E' -> Direction.E.move(position, amount);
+                case 'W' -> Direction.W.move(position, amount);
+                case 'F' -> currentDirection.move(position, amount);
                 case 'L' -> {
                     currentDirection = currentDirection.rotateLeft(amount);
                     yield position;
@@ -53,10 +53,10 @@ public class Day12 extends AocDay<List<String>> {
             char direction = s.charAt(0);
             int amount = parseInt(s.substring(1));
             waypointRelative = switch (direction) {
-                case 'N' -> Direction.N.apply(waypointRelative, amount);
-                case 'S' -> Direction.S.apply(waypointRelative, amount);
-                case 'E' -> Direction.E.apply(waypointRelative, amount);
-                case 'W' -> Direction.W.apply(waypointRelative, amount);
+                case 'N' -> Direction.N.move(waypointRelative, amount);
+                case 'S' -> Direction.S.move(waypointRelative, amount);
+                case 'E' -> Direction.E.move(waypointRelative, amount);
+                case 'W' -> Direction.W.move(waypointRelative, amount);
                 case 'F' -> {
                     position = new Coordinate(position.x + amount * waypointRelative.x, position.y + amount * waypointRelative.y);
                     yield waypointRelative;
@@ -70,12 +70,10 @@ public class Day12 extends AocDay<List<String>> {
         return abs(position.x) + abs(position.y) + "";
     }
 
-    private static Coordinate rotate(Coordinate waypointRelative, double angle) {
-        final int x = waypointRelative.x;
-        final int y = waypointRelative.y;
+    private static Coordinate rotate(Coordinate c, double angle) {
         return new Coordinate(
-                (int) Math.round(x * cos(angle) + y * sin(angle)),
-                (int) Math.round(y * cos(angle) - x * sin(angle))
+                (int) Math.round(c.x * cos(angle) + c.y * sin(angle)),
+                (int) Math.round(c.y * cos(angle) - c.x * sin(angle))
         );
     }
 
@@ -92,7 +90,7 @@ public class Day12 extends AocDay<List<String>> {
             this.coordinateFunction = coordinateFunction;
         }
 
-        Coordinate apply(Coordinate coordinate, int amount) {
+        Coordinate move(Coordinate coordinate, int amount) {
             return coordinateFunction.apply(coordinate, amount);
         }
 
@@ -105,8 +103,6 @@ public class Day12 extends AocDay<List<String>> {
         }
     }
 
-    private record Coordinate(int x, int y) {
-
-    }
+    private record Coordinate(int x, int y) {}
 
 }
