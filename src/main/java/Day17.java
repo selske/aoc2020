@@ -50,36 +50,8 @@ public class Day17 extends AocDay<Set<List<Integer>>> {
         for (int i = 0; i < 6; i++) {
             Bounds bounds = calculateNewBounds(cubes, dimensions);
 
-            List<Integer> current = new ArrayList<>(dimensions);
-            for (int val : bounds.minValues) {
-                current.add(val);
-            }
-
-            List<List<Integer>> range = new ArrayList<>();
-            while (true) {
-                range.add(new ArrayList<>(current));
-                boolean done = true;
-                for (int dimension = 0; dimension < dimensions; dimension++) {
-                    if (current.get(dimension) != bounds.maxValues[dimension]) {
-                        done = false;
-                        break;
-                    }
-                }
-                if (done) {
-                    break;
-                }
-
-                for (int dimension = 0; dimension < dimensions; dimension++) {
-                    if (current.get(dimension) < bounds.maxValues[dimension]) {
-                        current.set(dimension, current.get(dimension) + 1);
-                        break;
-                    } else {
-                        current.set(dimension, bounds.minValues[dimension]);
-                    }
-                }
-            }
             Set<List<Integer>> finalCubes = cubes;
-            cubes = range.stream()
+            cubes = bounds.permute().stream()
                     .parallel()
                     .map(cube -> active(finalCubes, cube, dimensions))
                     .flatMap(Optional::stream)
@@ -97,10 +69,8 @@ public class Day17 extends AocDay<Set<List<Integer>>> {
             if (activeNeighbours == 2 || activeNeighbours == 3) {
                 return Optional.of(current);
             }
-        } else {
-            if (activeNeighbours == 3) {
-                return Optional.of(current);
-            }
+        } else if (activeNeighbours == 3) {
+            return Optional.of(current);
         }
         return Optional.empty();
     }
@@ -139,17 +109,15 @@ public class Day17 extends AocDay<Set<List<Integer>>> {
     }
 
     public Collection<List<Integer>> getNeighbours(List<Integer> coordinate, int dimensions) {
-        int[] minValues = new int[dimensions];
-        Arrays.fill(minValues, -1);
-        int[] maxValues = new int[dimensions];
-        Arrays.fill(maxValues, 1);
+        List<Integer> minValues = Collections.nCopies(dimensions, -1);
+        List<Integer> maxValues = Collections.nCopies(dimensions, 1);
 
         Set<List<Integer>> neighbours = new HashSet<>();
-        int[] current = Arrays.copyOf(minValues, dimensions);
+        List<Integer> current = new ArrayList<>(minValues);
         while (true) {
             List<Integer> neighbour = new ArrayList<>(coordinate);
             for (int i = 0; i < neighbour.size(); i++) {
-                neighbour.set(i, neighbour.get(i) + current[i]);
+                neighbour.set(i, neighbour.get(i) + current.get(i));
             }
             if (!neighbour.equals(coordinate)) {
                 neighbours.add(neighbour);
@@ -157,7 +125,7 @@ public class Day17 extends AocDay<Set<List<Integer>>> {
 
             boolean done = true;
             for (int dimension = 0; dimension < dimensions; dimension++) {
-                if (current[dimension] != maxValues[dimension]) {
+                if (!current.get(dimension).equals(maxValues.get(dimension))) {
                     done = false;
                     break;
                 }
@@ -167,11 +135,11 @@ public class Day17 extends AocDay<Set<List<Integer>>> {
             }
 
             for (int dimension = 0; dimension < dimensions; dimension++) {
-                if (current[dimension] < maxValues[dimension]) {
-                    current[dimension]++;
+                if (current.get(dimension) < maxValues.get(dimension)) {
+                    current.set(dimension, current.get(dimension) + 1);
                     break;
                 } else {
-                    current[dimension] = minValues[dimension];
+                    current.set(dimension, minValues.get(dimension));
                 }
             }
         }
@@ -179,6 +147,39 @@ public class Day17 extends AocDay<Set<List<Integer>>> {
     }
 
     static record Bounds(int[] minValues, int[] maxValues) {
+
+        public Collection<List<Integer>> permute() {
+            List<Integer> current = new ArrayList<>(minValues.length);
+            for (int val : minValues) {
+                current.add(val);
+            }
+
+            List<List<Integer>> permutations = new ArrayList<>();
+            while (true) {
+                permutations.add(new ArrayList<>(current));
+                boolean done = true;
+                for (int dimension = 0; dimension < minValues.length; dimension++) {
+                    if (current.get(dimension) != maxValues[dimension]) {
+                        done = false;
+                        break;
+                    }
+                }
+
+                if (done) {
+                    break;
+                }
+
+                for (int dimension = 0; dimension < minValues().length; dimension++) {
+                    if (current.get(dimension) < maxValues[dimension]) {
+                        current.set(dimension, current.get(dimension) + 1);
+                        break;
+                    } else {
+                        current.set(dimension, minValues[dimension]);
+                    }
+                }
+            }
+            return permutations;
+        }
 
     }
 
