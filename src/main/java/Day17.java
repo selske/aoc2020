@@ -1,27 +1,26 @@
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.IntStream;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toSet;
 
-public class Day17 extends AocDay<Set<Day17.Coordinate>> {
+public class Day17 extends AocDay<Set<List<Integer>>> {
 
     public static void main(String[] args) {
         new Day17().solve(true);
     }
 
     @Override
-    Set<Coordinate> prepareInput() throws Exception {
-        final List<String> lines = Files.readAllLines(Path.of(Day15.class.getResource("/day17").getPath()));
+    Set<List<Integer>> prepareInput() throws Exception {
+        final List<String> lines = Files.readAllLines(Path.of(Day17.class.getResource("/day17").getPath()));
 
-        final Set<Coordinate> cubes = new HashSet<>();
+        final Set<List<Integer>> cubes = new HashSet<>();
         for (int y = 0; y < lines.size(); y++) {
             String line = lines.get(y);
             for (int x = 0; x < line.toCharArray().length; x++) {
                 if (line.charAt(x) == '#') {
-                    cubes.add(new Coordinate(x, y, 0, 0));
+                    cubes.add(List.of(x, y));
                 }
             }
         }
@@ -29,50 +28,72 @@ public class Day17 extends AocDay<Set<Day17.Coordinate>> {
     }
 
     @Override
-    String part1(Set<Coordinate> input) {
-        return solve(input, false);
+    String part1(Set<List<Integer>> input) {
+        return solve(input, 3);
     }
 
     @Override
-    String part2(Set<Coordinate> input) {
-        return solve(input, true);
+    String part2(Set<List<Integer>> input) {
+        return solve(input, 4);
     }
 
-    private String solve(Set<Coordinate> input, boolean include4thDimension) {
-        Set<Coordinate> cubes = input;
+    private String solve(Set<List<Integer>> input, int dimensions) {
+        Set<List<Integer>> cubes = input.stream()
+                .map(i -> {
+                    final List<Integer> expanded = new ArrayList<>(Collections.nCopies(dimensions, 0));
+                    expanded.set(0, i.get(0));
+                    expanded.set(1, i.get(1));
+                    return expanded;
+                })
+                .collect(toSet());
 
         for (int i = 0; i < 6; i++) {
-            Bounds bounds = calculateNewBounds(cubes);
+            Bounds bounds = calculateNewBounds(cubes, dimensions);
 
-            Set<Coordinate> finalCubes = cubes;
-            cubes = IntStream.rangeClosed(bounds.xMin, bounds.xMax)
+            List<Integer> current = new ArrayList<>(dimensions);
+            for (int val : bounds.minValues) {
+                current.add(val);
+            }
+
+            List<List<Integer>> range = new ArrayList<>();
+            while (true) {
+                range.add(new ArrayList<>(current));
+                boolean done = true;
+                for (int dimension = 0; dimension < dimensions; dimension++) {
+                    if (current.get(dimension) != bounds.maxValues[dimension]) {
+                        done = false;
+                        break;
+                    }
+                }
+                if (done) {
+                    break;
+                }
+
+                for (int dimension = 0; dimension < dimensions; dimension++) {
+                    if (current.get(dimension) < bounds.maxValues[dimension]) {
+                        current.set(dimension, current.get(dimension) + 1);
+                        break;
+                    } else {
+                        current.set(dimension, bounds.minValues[dimension]);
+                    }
+                }
+            }
+            Set<List<Integer>> finalCubes = cubes;
+            cubes = range.stream()
                     .parallel()
-                    .mapToObj(x -> IntStream.rangeClosed(bounds.yMin, bounds.yMax)
-                            .mapToObj(y -> IntStream.rangeClosed(bounds.zMin, bounds.zMax)
-                                    .mapToObj(z -> IntStream.rangeClosed(bounds.wMin, bounds.wMax)
-                                            .filter(w -> include4thDimension || w == 0)
-                                            .mapToObj(w -> {
-                                                Coordinate current = new Coordinate(x, y, z, w);
-                                                return active(finalCubes, current, include4thDimension);
-                                            })
-                                            .flatMap(Optional::stream)
-                                    )
-                                    .flatMap(Function.identity())
-                            )
-                            .flatMap(Function.identity())
-                    )
-                    .flatMap(Function.identity())
-                    .collect(toSet());
+                    .map(cube -> active(finalCubes, cube, dimensions))
+                    .flatMap(Optional::stream)
+                    .collect(Collectors.toSet());
         }
 
         return cubes.size() + "";
     }
 
-    private Optional<Coordinate> active(Set<Coordinate> finalCubes, Coordinate current, boolean include4thDimension) {
-        long activeNeighbours = current.getNeighbours(include4thDimension).stream()
-                .filter(finalCubes::contains)
+    private Optional<List<Integer>> active(Set<List<Integer>> cubes, List<Integer> current, int dimensions) {
+        long activeNeighbours = getNeighbours(current, dimensions).stream()
+                .filter(cubes::contains)
                 .count();
-        if (finalCubes.contains(current)) {
+        if (cubes.contains(current)) {
             if (activeNeighbours == 2 || activeNeighbours == 3) {
                 return Optional.of(current);
             }
@@ -84,120 +105,80 @@ public class Day17 extends AocDay<Set<Day17.Coordinate>> {
         return Optional.empty();
     }
 
-    private Bounds calculateNewBounds(Set<Coordinate> coordinates) {
-        Bounds bounds = new Bounds();
-        for (Coordinate coordinate : coordinates) {
-            if (coordinate.x < bounds.xMin) {
-                bounds.xMin = coordinate.x;
-            } else if (coordinate.x > bounds.xMax) {
-                bounds.xMax = coordinate.x;
+    private Bounds calculateNewBounds(Set<List<Integer>> coordinates, int dimensions) {
+        int[] minValues = new int[dimensions];
+        Arrays.fill(minValues, Integer.MAX_VALUE);
+        int[] maxValues = new int[dimensions];
+        Arrays.fill(maxValues, Integer.MIN_VALUE);
+
+        for (List<Integer> coordinate : coordinates) {
+            for (int i = 0; i < coordinate.size(); i++) {
+                final Integer c = coordinate.get(i);
+                if (c < minValues[i]) {
+                    minValues[i] = c;
+                }
+                if (c > maxValues[i]) {
+                    maxValues[i] = c;
+                }
             }
-            if (coordinate.y < bounds.yMin) {
-                bounds.yMin = coordinate.y;
-            } else if (coordinate.y > bounds.yMax) {
-                bounds.yMax = coordinate.y;
+        }
+        for (int i = 0; i < minValues.length; i++) {
+            if (minValues[i] == Integer.MAX_VALUE) {
+                minValues[i] = 0;
             }
-            if (coordinate.z < bounds.zMin) {
-                bounds.zMin = coordinate.z;
-            } else if (coordinate.z > bounds.zMax) {
-                bounds.zMax = coordinate.z;
+            minValues[i]--;
+        }
+        for (int i = 0; i < maxValues.length; i++) {
+            if (maxValues[i] == Integer.MIN_VALUE) {
+                maxValues[i] = 0;
             }
-            if (coordinate.w < bounds.wMin) {
-                bounds.wMin = coordinate.w;
-            } else if (coordinate.w > bounds.wMax) {
-                bounds.wMax = coordinate.w;
-            }
+            maxValues[i]++;
         }
 
-        if (bounds.xMin == Integer.MAX_VALUE) {
-            bounds.xMin = 0;
-        }
-        if (bounds.xMax == Integer.MIN_VALUE) {
-            bounds.xMax = 0;
-        }
-        if (bounds.yMin == Integer.MAX_VALUE) {
-            bounds.yMin = 0;
-        }
-        if (bounds.yMax == Integer.MIN_VALUE) {
-            bounds.yMax = 0;
-        }
-        if (bounds.zMin == Integer.MAX_VALUE) {
-            bounds.zMin = 0;
-        }
-        if (bounds.zMax == Integer.MIN_VALUE) {
-            bounds.zMax = 0;
-        }
-        if (bounds.wMin == Integer.MAX_VALUE) {
-            bounds.wMin = 0;
-        }
-        if (bounds.wMax == Integer.MIN_VALUE) {
-            bounds.wMax = 0;
-        }
-
-        bounds.xMin--;
-        bounds.xMax++;
-        bounds.yMin--;
-        bounds.yMax++;
-        bounds.zMin--;
-        bounds.zMax++;
-        bounds.wMin--;
-        bounds.wMax++;
-
-        return bounds;
+        return new Bounds(minValues, maxValues);
     }
 
-    static record Coordinate(int x, int y, int z, int w) {
+    public Collection<List<Integer>> getNeighbours(List<Integer> coordinate, int dimensions) {
+        int[] minValues = new int[dimensions];
+        Arrays.fill(minValues, -1);
+        int[] maxValues = new int[dimensions];
+        Arrays.fill(maxValues, 1);
 
-        public Collection<Coordinate> getNeighbours(boolean include4thDimension) {
-            return IntStream.rangeClosed(-1, 1)
-                    .mapToObj(x -> IntStream.rangeClosed(-1, 1)
-                            .mapToObj(y -> IntStream.rangeClosed(-1, 1)
-                                    .mapToObj(z -> IntStream.rangeClosed(-1, 1)
-                                            .filter(w -> !(x == 0 && y == 0 && z == 0 && w == 0))
-                                            .filter(w -> include4thDimension || w == 0)
-                                            .mapToObj(w -> (CoordinateFunction) coordinate -> new Coordinate(coordinate.x + x, coordinate.y + y, coordinate.z + z, coordinate.w + w))
-                                    )
-                                    .flatMap(Function.identity())
-                            )
-                            .flatMap(Function.identity())
-                    )
-                    .flatMap(Function.identity())
-                    .map(cf -> cf.apply(this))
-                    .collect(toSet());
+        Set<List<Integer>> neighbours = new HashSet<>();
+        int[] current = Arrays.copyOf(minValues, dimensions);
+        while (true) {
+            List<Integer> neighbour = new ArrayList<>(coordinate);
+            for (int i = 0; i < neighbour.size(); i++) {
+                neighbour.set(i, neighbour.get(i) + current[i]);
+            }
+            if (!neighbour.equals(coordinate)) {
+                neighbours.add(neighbour);
+            }
+
+            boolean done = true;
+            for (int dimension = 0; dimension < dimensions; dimension++) {
+                if (current[dimension] != maxValues[dimension]) {
+                    done = false;
+                    break;
+                }
+            }
+            if (done) {
+                break;
+            }
+
+            for (int dimension = 0; dimension < dimensions; dimension++) {
+                if (current[dimension] < maxValues[dimension]) {
+                    current[dimension]++;
+                    break;
+                } else {
+                    current[dimension] = minValues[dimension];
+                }
+            }
         }
-
-        private interface CoordinateFunction {
-
-            Coordinate apply(Coordinate input);
-
-        }
-
+        return neighbours;
     }
 
-    static class Bounds {
-
-        int xMin = Integer.MAX_VALUE;
-        int xMax = Integer.MIN_VALUE;
-        int yMin = Integer.MAX_VALUE;
-        int yMax = Integer.MIN_VALUE;
-        int zMin = Integer.MAX_VALUE;
-        int zMax = Integer.MIN_VALUE;
-        int wMin = Integer.MAX_VALUE;
-        int wMax = Integer.MIN_VALUE;
-
-        @Override
-        public String toString() {
-            return "Bounds{" +
-                   "xMin=" + xMin +
-                   ", xMax=" + xMax +
-                   ", yMin=" + yMin +
-                   ", yMax=" + yMax +
-                   ", zMin=" + zMin +
-                   ", zMax=" + zMax +
-                   ", wMin=" + wMin +
-                   ", wMax=" + wMax +
-                   '}';
-        }
+    static record Bounds(int[] minValues, int[] maxValues) {
 
     }
 
